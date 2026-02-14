@@ -10,12 +10,13 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://intel-react-kpsi.vercel.app"
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,           # 특정 도메인만 허용
-    allow_credentials=True,
+    allow_credentials=True,          # 모두 허용인 경우 False로 변경
     allow_methods=["*"],             # 모든 HTTP 메서드(GET, POST 등) 허용
     allow_headers=["*"],             # 모든 헤더 허용
 )
@@ -70,9 +71,11 @@ def get_festivals():
             'pageNo' : '1', 
             'numOfRows' : '100', 
             'type' : 'json'}
-    response = httpx.get(url, params=params)
-    data = response.json()
     try:
+        response = httpx.get(url, params=params)
+        data = response.json()    
         return data["response"]["body"]["items"]
-    except:
-        return {"error":"error", "raw":data}
+    except KeyError:
+        return {"error": "API 응답 구조가 다릅니다", "raw": data}
+    except Exception as e:
+        return {"error": str(e)}
