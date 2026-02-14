@@ -71,4 +71,8 @@ def get_festivals():
             'numOfRows' : '100', 
             'type' : 'json'}
     response = httpx.get(url, params=params)
-    return response.json()["response"]["body"]["items"]
+    data = response.json()
+    try:
+        return data["response"]["body"]["items"]
+    except:
+        return {"error":"error", "raw":data}
