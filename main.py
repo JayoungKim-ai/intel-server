@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+import os
+import httpx
+from dotenv import load_dotenv
+load_dotenv()  
 app = FastAPI()
 
 # 허용할 프론트엔드 주소 목록
@@ -48,3 +51,24 @@ def random_animal():
     animals = ["고양이", "강아지", "햄스터", "너구리"]   
     return { "characteristic" : random.choice(characteristics), 
             "animal" :random.choice(animals)} 
+
+
+
+# 랜덤 고양이
+@app.get("/random_cat")
+def random_cat():
+    url = "https://api.thecatapi.com/v1/images/search?limit=6"
+    response = httpx.get(url)
+    return response.json()
+
+# festival
+@app.get("/festival")
+def get_festivals():      
+    service_key = os.getenv("API_SERVICE_KEY")
+    url = 'http://api.data.go.kr/openapi/tn_pubr_public_cltur_fstvl_api'
+    params ={'serviceKey' : service_key, 
+            'pageNo' : '1', 
+            'numOfRows' : '100', 
+            'type' : 'json'}
+    response = httpx.get(url, params=params)
+    return response.json()["response"]["body"]["items"]
