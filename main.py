@@ -13,9 +13,6 @@ from fastapi import UploadFile, File
 from mobilenet.processing import preprocess_image
 from mobilenet.model import predict, load_model
 
-#mobilenet 모델 로드
-load_model() 
-
 # .env 파일의 환경변수를 메모리에 로드
 # → 이후 os.getenv()로 값을 읽을 수 있게 됩니다.
 load_dotenv()   
@@ -37,6 +34,9 @@ print(f"저장 당시 sklearn 버전: {model['sklearn_version']}")
 # 이 app 객체에 API 경로(라우트)를 등록하고, 서버를 실행합니다
 app = FastAPI()
 
+@app.on_event("startup")
+def startup_event():
+    load_model()
 
 
 # ──────────────────────────────────────────────
