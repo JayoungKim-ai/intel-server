@@ -11,7 +11,7 @@ import pandas as pd
 # mobilenet을 위한 import 추가
 from fastapi import UploadFile, File
 from mobilenet.processing import preprocess_image
-from mobilenet.model import predict, load_model
+from mobilenet.model import predict
 
 # .env 파일의 환경변수를 메모리에 로드
 # → 이후 os.getenv()로 값을 읽을 수 있게 됩니다.
@@ -33,10 +33,6 @@ print(f"저장 당시 sklearn 버전: {model['sklearn_version']}")
 # FastAPI() 를 호출하면 웹 애플리케이션 객체가 만들어집니다.
 # 이 app 객체에 API 경로(라우트)를 등록하고, 서버를 실행합니다
 app = FastAPI()
-
-@app.on_event("startup")
-def startup_event():
-    load_model()
 
 
 # ──────────────────────────────────────────────
