@@ -1,94 +1,85 @@
 # model.py
-# TFLite 경량 모델 로드 및 예측 담당
-# 기존 TensorFlow 전체 모델 대비 메모리 사용량 대폭 감소 (200~300MB → 50~80MB)
+# 모델 로드 및 예측 담당
 
+import onnxruntime as ort
 import numpy as np
-import tensorflow as tf
 import json
+import urllib.request
 import os
 
-_interpreter = None
-_class_index = None
+# 전역 변수 (서버 시작 시 한 번만 로드)
+_session = None
+_labels = None
+
+# 파일 경로
+_model_dir = os.path.dirname(__file__)
+_model_path = os.path.join(_model_dir, "mobilenetv2.onnx")
+_labels_path = os.path.join(_model_dir, "imagenet_labels.json")
+
+
+def _download_labels():
+    """ImageNet 1000 클래스 라벨 다운로드"""
+    if not os.path.exists(_labels_path):
+        print("🔄 ImageNet 라벨 다운로드 중...")
+        url = "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json"
+        urllib.request.urlretrieve(url, _labels_path)
+        print("✅ 라벨 다운로드 완료!")
 
 
 def load_model():
-    """TFLite 모델 로드 (싱글톤 패턴)"""
-    global _interpreter, _class_index
+    """MobileNetV2 ONNX 모델 로드 (싱글톤 패턴)"""
+    global _session, _labels
 
-    if _interpreter is None:
-        print("🔄 MobileNetV2 TFLite 모델 로딩 중...")
+    if _session is None:
+        if not os.path.exists(_model_path):
+            raise FileNotFoundError(
+                f"모델 파일이 없습니다: {_model_path}\n"
+                "먼저 python mobilenet/download_model.py 를 실행하세요."
+            )
 
-        # TFLite 모델 파일 경로 (model.py와 같은 폴더에 저장)
-        model_path = os.path.join(os.path.dirname(__file__), "mobilenet_v2.tflite")
+        print("🔄 MobileNetV2 ONNX 모델 로딩 중...")
+        _session = ort.InferenceSession(_model_path)
+        print("✅ 모델 로딩 완료!")
 
-        # TFLite 모델이 없으면 Keras 모델에서 변환 후 저장
-        if not os.path.exists(model_path):
-            print("⏳ 최초 실행: TFLite 모델 변환 중 (1회만 실행됩니다)...")
-            from tensorflow.keras.applications import MobileNetV2
-            model = MobileNetV2(weights='imagenet')
-            converter = tf.lite.TFLiteConverter.from_keras_model(model)
-            tflite_model = converter.convert()
-            with open(model_path, 'wb') as f:
-                f.write(tflite_model)
-            del model  # 원본 모델 메모리 해제
-            print("✅ TFLite 변환 완료!")
+        # 라벨 로드
+        _download_labels()
+        with open(_labels_path, "r") as f:
+            _labels = json.load(f)
 
-        # TFLite 인터프리터 생성
-        _interpreter = tf.lite.Interpreter(model_path=model_path)
-        _interpreter.allocate_tensors()
-
-        # ImageNet 클래스 인덱스 로드 (1000개 클래스명)
-        class_index_path = tf.keras.utils.get_file(
-            'imagenet_class_index.json',
-            'https://storage.googleapis.com/download.tensorflow.org/data/imagenet_class_index.json'
-        )
-        with open(class_index_path) as f:
-            _class_index = json.load(f)
-
-        print("✅ TFLite 모델 로딩 완료!")
-
-    return _interpreter, _class_index
+    return _session, _labels
 
 
 def predict(processed_image, top_k: int = 5):
     """
-    전처리된 이미지로 분류 예측 수행 (TFLite 버전)
+    전처리된 이미지로 분류 예측 수행
 
     Args:
-        processed_image: 전처리된 이미지 배열 (1, 224, 224, 3)
+        processed_image: 전처리된 이미지 배열 (1, 3, 224, 224)
         top_k: 반환할 상위 결과 개수
 
     Returns:
         list: 예측 결과 리스트 [{label, probability}, ...]
     """
-    interpreter, class_index = load_model()
+    session, labels = load_model()
 
-    # 입출력 텐서 정보
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
+    # 입력 이름 확인 및 예측 수행
+    input_name = session.get_inputs()[0].name
+    outputs = session.run(None, {input_name: processed_image})
 
-    # 입력 데이터 설정
-    interpreter.set_tensor(
-        input_details[0]['index'],
-        processed_image.astype(np.float32)
-    )
-
-    # 추론 실행
-    interpreter.invoke()
-
-    # 결과 가져오기
-    predictions = interpreter.get_tensor(output_details[0]['index'])[0]
+    # 소프트맥스로 확률 변환
+    logits = outputs[0][0]
+    exp_logits = np.exp(logits - np.max(logits))
+    probabilities = exp_logits / exp_logits.sum()
 
     # 상위 K개 결과 추출
-    top_indices = predictions.argsort()[-top_k:][::-1]
+    top_indices = np.argsort(probabilities)[::-1][:top_k]
 
+    # 결과 정리
     results = []
-    for i in top_indices:
-        label = class_index[str(i)][1]
-        probability = float(predictions[i]) * 100
+    for idx in top_indices:
         results.append({
-            "label": label,
-            "probability": round(probability, 1)
+            "label": labels[idx],
+            "probability": round(float(probabilities[idx]) * 100, 1)
         })
 
     return results
