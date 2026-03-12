@@ -13,7 +13,7 @@ from fastapi import UploadFile, File
 from mobilenet.processing import preprocess_image
 from mobilenet.model import predict
 
-from pyngrok import ngrok
+# from pyngrok import ngrok
 
 # .env 파일의 환경변수를 메모리에 로드
 # → 이후 os.getenv()로 값을 읽을 수 있게 됩니다.
