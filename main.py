@@ -110,6 +110,10 @@ def get_random_cat():
     # 랜덤 고양이 데이터 리턴
     return random_cat
 
+@app.get("/check_key")
+def check_key():
+    key = os.getenv("FESTIVAL_SERVICE_KEY")
+    return {"key_exists": key is not None, "key_length": len(key) if key else 0}
 
 # 축제데이터
 @app.get("/festivals")
