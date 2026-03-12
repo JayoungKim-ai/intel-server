@@ -46,19 +46,16 @@ app = FastAPI()
 # → 이 설정을 통해 특정 프론트엔드 주소에서 오는 요청을 허용합니다.
 
 
-# 허용할 프론트엔드 주소 목록
-origins = [
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-]
-
+# 모든 출처 허용
+origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,           # 위에서 지정한 주소만 허용
-    allow_credentials=True,
-    allow_methods=["*"],             # 모든 HTTP 메서드(GET, POST 등) 허용
-    allow_headers=["*"],             # 모든 헤더 허용
+    allow_origins=origins,
+    allow_credentials=False,        # False로 변경
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 
 # ──────────────────────────────────────────────
 # 3) API 엔드포인트(라우트) 정의
