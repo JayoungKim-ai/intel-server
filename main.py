@@ -112,35 +112,35 @@ def get_random_cat():
 
 
 # 축제데이터
-@app.get("/festival")
+@app.get("/festivals")
 def get_festivals():
 
     service_key = os.getenv("FESTIVAL_SERVICE_KEY")
     url = 'http://api.data.go.kr/openapi/tn_pubr_public_cltur_fstvl_api'
-    items = []
-    page=1
-    
-    # 데이터를 받아오기 위한 url 및 파라미터
-    while True:
+    total_items = []
+    for i in range(1,50):
+        # 데이터를 받아오기 위한 url 및 파라미터
         params ={'serviceKey' : service_key, 
-                'pageNo' : str(page), 
+                'pageNo' : str(i), 
                 'numOfRows' : '100', 
                 'type' : 'json'}
-        
+
         # 데이터 받아오기
-        reponse = httpx.get(url, params=params)
-        data = reponse.json()
+        response = httpx.get(url, params=params)
+        data = response.json()   
         
-        new_items = data['response']['body']['items']
-        items.extend(new_items)
-
-        # 받아온 개수가 100개 미만이면 마지막 페이지
-        if len(new_items)<100:
+        items = data['response']['body']['items']
+        
+        if not items:
             break
-        page+=1
 
-    # 리턴
-    return items
+        total_items.extend(items)
+
+        if len(items) < 100:
+            break
+    print("total_items ============>", len(total_items))
+    return total_items
+
     
 @app.post("/sales_predict" , response_model=SalesOutput)
 def sales_predict(data: SalesInput): 
@@ -180,19 +180,3 @@ async def classify_image(file: UploadFile = File(...)):
         "predictions": results
     }
 
-
-# ──────────────────────────────────────────────
-# 서버 실행 + ngrok 터널
-# ──────────────────────────────────────────────
-if __name__ == "__main__":
-    import uvicorn
-
-    ngrok.set_auth_token(os.getenv("NGROK_AUTH_TOKEN"))
-    public_url = ngrok.connect(8000, url=os.getenv("NGROK_DOMAIN"))
-    print(f"🌐 Public URL: {public_url}")
-
-    try:
-        uvicorn.run(app, host="0.0.0.0", port=8000)
-    finally:
-        ngrok.disconnect_all()
-        ngrok.kill()
