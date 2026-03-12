@@ -126,7 +126,7 @@ def get_festivals():
                 'type' : 'json'}
 
         # 데이터 받아오기
-        response = httpx.get(url, params=params)
+        response = httpx.get(url, params=params, timeout=10)
         data = response.json()   
         
         items = data['response']['body']['items']
