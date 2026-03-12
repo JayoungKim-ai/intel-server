@@ -124,19 +124,19 @@ def get_festivals():
                 'pageNo' : str(i), 
                 'numOfRows' : '100', 
                 'type' : 'json'}
-
-        # 데이터 받아오기
-        response = httpx.get(url, params=params, timeout=10)
-        data = response.json()   
         
-        items = data['response']['body']['items']
-        
-        if not items:
-            break
-
-        total_items.extend(items)
-
-        if len(items) < 100:
+        try:
+            response = httpx.get(url, params=params, timeout=10)
+            data = response.json()
+            items = data['response']['body']['items']
+            
+            if not items:
+                break
+            total_items.extend(items)
+            if len(items) < 100:
+                break
+        except Exception as e:
+            print(f"Error at page {i}: {e}")
             break
     print("total_items ============>", len(total_items))
     return total_items
