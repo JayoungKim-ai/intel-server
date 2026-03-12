@@ -13,6 +13,8 @@ from fastapi import UploadFile, File
 from mobilenet.processing import preprocess_image
 from mobilenet.model import predict
 
+from pyngrok import ngrok
+
 # .env 파일의 환경변수를 메모리에 로드
 # → 이후 os.getenv()로 값을 읽을 수 있게 됩니다.
 load_dotenv()   
@@ -109,33 +111,36 @@ def get_random_cat():
     return random_cat
 
 
-@app.get("/festivals")
-def get_festivals():      
-    # 환경변수에서 공공데이터 API 서비스 키 가져오기
-    service_key = os.getenv("API_SERVICE_KEY")
-    
-    # 공공데이터 문화축제 API URL
+# 축제데이터
+@app.get("/festival")
+def get_festivals():
+
+    service_key = os.getenv("FESTIVAL_SERVICE_KEY")
     url = 'http://api.data.go.kr/openapi/tn_pubr_public_cltur_fstvl_api'
+    items = []
+    page=1
     
-    # API 요청 파라미터 설정
-    params = {
-        'serviceKey': service_key,  # 인증 키
-        'pageNo': '1',              # 페이지 번호
-        'numOfRows': '100',         # 한 페이지 결과 수
-        'type': 'json'              # 응답 형식
-    }
-    # API 호출
-    response = httpx.get(url, params=params)
+    # 데이터를 받아오기 위한 url 및 파라미터
+    while True:
+        params ={'serviceKey' : service_key, 
+                'pageNo' : str(page), 
+                'numOfRows' : '100', 
+                'type' : 'json'}
+        
+        # 데이터 받아오기
+        reponse = httpx.get(url, params=params)
+        data = reponse.json()
+        
+        new_items = data['response']['body']['items']
+        items.extend(new_items)
 
-    # 응답 상태 코드가 200이 아니면 에러 반환
-    if response.status_code != 200:
-        return {"error": "축제 API 요청 실패"}
+        # 받아온 개수가 100개 미만이면 마지막 페이지
+        if len(new_items)<100:
+            break
+        page+=1
 
-    # JSON 형식의 데이터를 파이썬 리스트로 변환
-    data = response.json()    
-
-    # 축제 목록 데이터 반환
-    return data["response"]["body"]["items"]
+    # 리턴
+    return items
     
 @app.post("/sales_predict" , response_model=SalesOutput)
 def sales_predict(data: SalesInput): 
@@ -174,3 +179,20 @@ async def classify_image(file: UploadFile = File(...)):
         "success": True,
         "predictions": results
     }
+
+
+# ──────────────────────────────────────────────
+# 서버 실행 + ngrok 터널
+# ──────────────────────────────────────────────
+if __name__ == "__main__":
+    import uvicorn
+
+    ngrok.set_auth_token(os.getenv("NGROK_AUTH_TOKEN"))
+    public_url = ngrok.connect(8000, url=os.getenv("NGROK_DOMAIN"))
+    print(f"🌐 Public URL: {public_url}")
+
+    try:
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+    finally:
+        ngrok.disconnect_all()
+        ngrok.kill()
