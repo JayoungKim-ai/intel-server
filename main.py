@@ -118,29 +118,18 @@ def get_festivals():
 
     service_key = os.getenv("FESTIVAL_SERVICE_KEY")
     url = 'http://api.data.go.kr/openapi/tn_pubr_public_cltur_fstvl_api'
-    total_items = []
-    for i in range(1,50):
-        # 데이터를 받아오기 위한 url 및 파라미터
-        params ={'serviceKey' : service_key, 
-                'pageNo' : str(i), 
-                'numOfRows' : '100', 
-                'type' : 'json'}
-        
-        try:
-            response = httpx.get(url, params=params, timeout=10)
-            data = response.json()
-            items = data['response']['body']['items']
-            
-            if not items:
-                break
-            total_items.extend(items)
-            if len(items) < 100:
-                break
-        except Exception as e:
-            print(f"Error at page {i}: {e}")
-            break
-    print("total_items ============>", len(total_items))
-    return total_items
+
+
+    params ={'serviceKey' : service_key, 
+            'pageNo' : '1', 
+            'numOfRows' : '100', 
+            'type' : 'json'}        
+
+    response = httpx.get(url, params=params, timeout=10)
+    data = response.json()
+    items = data['response']['body']['items']    
+
+    return items
 
     
 @app.post("/sales_predict" , response_model=SalesOutput)
